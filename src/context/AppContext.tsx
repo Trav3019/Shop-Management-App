@@ -1,0 +1,118 @@
+import React, { createContext, useContext } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { Equipment, WorkOrder, Part, MaintenanceRecord } from '../types';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import {
+  initialEquipment,
+  initialWorkOrders,
+  initialParts,
+  initialMaintenanceRecords,
+} from '../data/initialData';
+
+interface AppContextType {
+  equipment: Equipment[];
+  addEquipment: (e: Omit<Equipment, 'id' | 'createdAt'>) => void;
+  updateEquipment: (e: Equipment) => void;
+  deleteEquipment: (id: string) => void;
+
+  workOrders: WorkOrder[];
+  addWorkOrder: (w: Omit<WorkOrder, 'id' | 'createdDate'>) => void;
+  updateWorkOrder: (w: WorkOrder) => void;
+  deleteWorkOrder: (id: string) => void;
+  completeWorkOrder: (id: string, actualHours?: number) => void;
+
+  parts: Part[];
+  addPart: (p: Omit<Part, 'id'>) => void;
+  updatePart: (p: Part) => void;
+  deletePart: (id: string) => void;
+  adjustPartQty: (id: string, delta: number) => void;
+
+  maintenanceRecords: MaintenanceRecord[];
+  addMaintenanceRecord: (r: Omit<MaintenanceRecord, 'id'>) => void;
+  deleteMaintenanceRecord: (id: string) => void;
+}
+
+const AppContext = createContext<AppContextType | null>(null);
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [equipment, setEquipment] = useLocalStorage<Equipment[]>('fsm_equipment', initialEquipment);
+  const [workOrders, setWorkOrders] = useLocalStorage<WorkOrder[]>('fsm_workOrders', initialWorkOrders);
+  const [parts, setParts] = useLocalStorage<Part[]>('fsm_parts', initialParts);
+  const [maintenanceRecords, setMaintenanceRecords] = useLocalStorage<MaintenanceRecord[]>('fsm_maintenance', initialMaintenanceRecords);
+
+  // Equipment
+  const addEquipment = (e: Omit<Equipment, 'id' | 'createdAt'>) =>
+    setEquipment(prev => [...prev, { ...e, id: uuidv4(), createdAt: new Date().toISOString().split('T')[0] }]);
+  const updateEquipment = (e: Equipment) =>
+    setEquipment(prev => prev.map(x => (x.id === e.id ? e : x)));
+  const deleteEquipment = (id: string) =>
+    setEquipment(prev => prev.filter(x => x.id !== id));
+
+  // Work Orders
+  const addWorkOrder = (w: Omit<WorkOrder, 'id' | 'createdDate'>) =>
+    setWorkOrders(prev => [...prev, { ...w, id: uuidv4(), createdDate: new Date().toISOString().split('T')[0] }]);
+  const updateWorkOrder = (w: WorkOrder) =>
+    setWorkOrders(prev => prev.map(x => (x.id === w.id ? w : x)));
+  const deleteWorkOrder = (id: string) =>
+    setWorkOrders(prev => prev.filter(x => x.id !== id));
+  const completeWorkOrder = (id: string, actualHours?: number) => {
+    setWorkOrders(prev =>
+      prev.map(x =>
+        x.id === id
+          ? { ...x, status: 'completed', completedDate: new Date().toISOString().split('T')[0], ...(actualHours !== undefined ? { actualHours } : {}) }
+          : x
+      )
+    );
+    const wo = workOrders.find(x => x.id === id);
+    if (wo) {
+      const record: Omit<MaintenanceRecord, 'id'> = {
+        date: new Date().toISOString().split('T')[0],
+        equipmentId: wo.equipmentId ?? '',
+        workOrderId: wo.id,
+        workPerformed: wo.title,
+        hoursSpent: actualHours,
+        technician: wo.assignedTo,
+        partsUsed: wo.partsNeeded,
+        notes: wo.notes,
+      };
+      if (wo.equipmentId) {
+        setMaintenanceRecords(prev => [...prev, { ...record, id: uuidv4() }]);
+      }
+    }
+  };
+
+  // Parts
+  const addPart = (p: Omit<Part, 'id'>) =>
+    setParts(prev => [...prev, { ...p, id: uuidv4() }]);
+  const updatePart = (p: Part) =>
+    setParts(prev => prev.map(x => (x.id === p.id ? p : x)));
+  const deletePart = (id: string) =>
+    setParts(prev => prev.filter(x => x.id !== id));
+  const adjustPartQty = (id: string, delta: number) =>
+    setParts(prev =>
+      prev.map(x => x.id === id ? { ...x, quantity: Math.max(0, x.quantity + delta) } : x)
+    );
+
+  // Maintenance Records
+  const addMaintenanceRecord = (r: Omit<MaintenanceRecord, 'id'>) =>
+    setMaintenanceRecords(prev => [...prev, { ...r, id: uuidv4() }]);
+  const deleteMaintenanceRecord = (id: string) =>
+    setMaintenanceRecords(prev => prev.filter(x => x.id !== id));
+
+  return (
+    <AppContext.Provider value={{
+      equipment, addEquipment, updateEquipment, deleteEquipment,
+      workOrders, addWorkOrder, updateWorkOrder, deleteWorkOrder, completeWorkOrder,
+      parts, addPart, updatePart, deletePart, adjustPartQty,
+      maintenanceRecords, addMaintenanceRecord, deleteMaintenanceRecord,
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
+}
