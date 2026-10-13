@@ -340,7 +340,7 @@ export function EquipmentDetail() {
         </div>
         {eq.serialNumber && (
           <a
-            href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber)}`}
+            href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber.trim())}${eq.jdEquipmentTypeId ? `/equipment/${eq.jdEquipmentTypeId}` : ''}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary flex items-center gap-1.5 text-sm flex-shrink-0"
@@ -381,6 +381,7 @@ export function EquipmentDetail() {
                 { label: 'Model', value: eq.model },
                 { label: 'Year', value: eq.year?.toString() },
                 { label: 'Serial Number', value: eq.serialNumber },
+                { label: 'JD Equipment Type ID', value: eq.jdEquipmentTypeId },
                 { label: eq.hoursOrMilesLabel ?? 'Hours', value: eq.hoursOrMiles?.toLocaleString() },
                 { label: 'Last Service', value: eq.lastServiceDate ? format(new Date(eq.lastServiceDate), 'MMM d, yyyy') : undefined },
                 { label: 'Next Service Due', value: eq.nextServiceDue ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy') : undefined },

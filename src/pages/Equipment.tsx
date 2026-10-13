@@ -15,7 +15,7 @@ const CATEGORIES: EquipmentCategory[] = [
 
 const EMPTY_FORM: Omit<Equipment, 'id' | 'createdAt'> = {
   name: '', category: 'Tractor', make: '', model: '', year: undefined,
-  serialNumber: '', status: 'operational', hoursOrMiles: undefined,
+  serialNumber: '', jdEquipmentTypeId: '', status: 'operational', hoursOrMiles: undefined,
   hoursOrMilesLabel: 'Hours', lastServiceDate: '', nextServiceDue: '', notes: '',
 };
 
@@ -176,7 +176,7 @@ export function EquipmentPage() {
               </button>
               {eq.serialNumber && (
                 <a
-                  href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber)}`}
+                  href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber.trim())}${eq.jdEquipmentTypeId ? `/equipment/${eq.jdEquipmentTypeId}` : ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="JD Parts Catalog"
@@ -241,6 +241,10 @@ export function EquipmentPage() {
             <div>
               <label className="label">Serial Number</label>
               <input className="input" value={form.serialNumber ?? ''} onChange={e => setForm(f => ({ ...f, serialNumber: e.target.value }))} placeholder="Serial / VIN" />
+            </div>
+            <div>
+              <label className="label">JD Equipment Type ID</label>
+              <input className="input" value={form.jdEquipmentTypeId ?? ''} onChange={e => setForm(f => ({ ...f, jdEquipmentTypeId: e.target.value }))} placeholder="e.g. 13129 (from JD Parts URL)" />
             </div>
             <div>
               <label className="label">Hours / Miles</label>

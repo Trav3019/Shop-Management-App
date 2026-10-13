@@ -26,6 +26,7 @@ export interface Equipment {
   model: string;
   year?: number;
   serialNumber?: string;
+  jdEquipmentTypeId?: string;
   status: EquipmentStatus;
   hoursOrMiles?: number;
   hoursOrMilesLabel?: 'Hours' | 'Miles';
