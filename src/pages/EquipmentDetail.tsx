@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import {
   ArrowLeft, Plus, Trash2, Edit2, ChevronDown, ChevronRight,
   CheckCircle2, Circle, ClipboardCheck, BookOpen,
-  Wrench, StickyNote, List,
+  Wrench, StickyNote, List, ExternalLink,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/Modal';
@@ -327,7 +327,7 @@ export function EquipmentDetail() {
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">{eq.name}</h1>
@@ -338,6 +338,16 @@ export function EquipmentDetail() {
             {eq.hoursOrMiles !== undefined ? ` · ${eq.hoursOrMiles.toLocaleString()} ${eq.hoursOrMilesLabel ?? 'Hours'}` : ''}
           </p>
         </div>
+        {eq.serialNumber && (
+          <a
+            href={`https://parts.deere.com/partscat/en-US/search?query=${encodeURIComponent(eq.serialNumber)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary flex items-center gap-1.5 text-sm flex-shrink-0"
+          >
+            <ExternalLink size={14} /> JD Parts Catalog
+          </a>
+        )}
       </div>
 
       {/* Tabs */}

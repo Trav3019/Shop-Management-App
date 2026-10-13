@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/Modal';
@@ -174,6 +174,18 @@ export function EquipmentPage() {
               >
                 View Details →
               </button>
+              {eq.serialNumber && (
+                <a
+                  href={`https://parts.deere.com/partscat/en-US/search?query=${encodeURIComponent(eq.serialNumber)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="JD Parts Catalog"
+                  className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <ExternalLink size={15} />
+                </a>
+              )}
               <button onClick={() => openEdit(eq)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
                 <Edit2 size={15} />
               </button>
