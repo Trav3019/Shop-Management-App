@@ -77,3 +77,68 @@ export interface MaintenanceRecord {
   partsUsed?: string;
   notes?: string;
 }
+
+export interface OperatorNote {
+  id: string;
+  equipmentId: string;
+  date: string;
+  author?: string;
+  note: string;
+  severity: 'info' | 'watch' | 'fix_winter' | 'urgent';
+  resolved: boolean;
+  resolvedDate?: string;
+}
+
+export interface EquipmentPart {
+  id: string;
+  equipmentId: string;
+  partNumber: string;
+  description: string;
+  category: string;
+  intervalHours?: number;
+  lastReplaced?: string;
+  notes?: string;
+}
+
+export interface InspectionItem {
+  id: string;
+  label: string;
+  partNumber?: string;
+  notes?: string;
+}
+
+export interface InspectionTemplate {
+  id: string;
+  equipmentId: string;
+  name: string;
+  items: InspectionItem[];
+  createdAt: string;
+}
+
+export interface CompletedInspectionItem {
+  itemId: string;
+  label: string;
+  status: 'ok' | 'replaced' | 'repaired' | 'needs_attention' | 'na';
+  partNumberUsed?: string;
+  notes?: string;
+}
+
+export interface InspectionRecord {
+  id: string;
+  templateId: string;
+  templateName: string;
+  equipmentId: string;
+  date: string;
+  technician?: string;
+  items: CompletedInspectionItem[];
+  notes?: string;
+}
+
+export interface OperationalInstruction {
+  id: string;
+  equipmentId: string;
+  title: string;
+  content: string;
+  category: 'pre_op' | 'operating' | 'shutdown' | 'troubleshooting' | 'general';
+  createdAt: string;
+}

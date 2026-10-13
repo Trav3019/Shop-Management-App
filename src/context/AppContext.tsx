@@ -1,6 +1,9 @@
 import React, { createContext, useContext } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Equipment, WorkOrder, Part, MaintenanceRecord } from '../types';
+import {
+  Equipment, WorkOrder, Part, MaintenanceRecord,
+  OperatorNote, EquipmentPart, InspectionTemplate, InspectionRecord, OperationalInstruction,
+} from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import {
   initialEquipment,
@@ -30,6 +33,30 @@ interface AppContextType {
   maintenanceRecords: MaintenanceRecord[];
   addMaintenanceRecord: (r: Omit<MaintenanceRecord, 'id'>) => void;
   deleteMaintenanceRecord: (id: string) => void;
+
+  operatorNotes: OperatorNote[];
+  addOperatorNote: (n: Omit<OperatorNote, 'id'>) => void;
+  resolveOperatorNote: (id: string) => void;
+  deleteOperatorNote: (id: string) => void;
+
+  equipmentParts: EquipmentPart[];
+  addEquipmentPart: (p: Omit<EquipmentPart, 'id'>) => void;
+  updateEquipmentPart: (p: EquipmentPart) => void;
+  deleteEquipmentPart: (id: string) => void;
+
+  inspectionTemplates: InspectionTemplate[];
+  addInspectionTemplate: (t: Omit<InspectionTemplate, 'id' | 'createdAt'>) => void;
+  updateInspectionTemplate: (t: InspectionTemplate) => void;
+  deleteInspectionTemplate: (id: string) => void;
+
+  inspectionRecords: InspectionRecord[];
+  addInspectionRecord: (r: Omit<InspectionRecord, 'id'>) => void;
+  deleteInspectionRecord: (id: string) => void;
+
+  instructions: OperationalInstruction[];
+  addInstruction: (i: Omit<OperationalInstruction, 'id' | 'createdAt'>) => void;
+  updateInstruction: (i: OperationalInstruction) => void;
+  deleteInstruction: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -39,6 +66,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [workOrders, setWorkOrders] = useLocalStorage<WorkOrder[]>('fsm_workOrders', initialWorkOrders);
   const [parts, setParts] = useLocalStorage<Part[]>('fsm_parts', initialParts);
   const [maintenanceRecords, setMaintenanceRecords] = useLocalStorage<MaintenanceRecord[]>('fsm_maintenance', initialMaintenanceRecords);
+  const [operatorNotes, setOperatorNotes] = useLocalStorage<OperatorNote[]>('fsm_operatorNotes', []);
+  const [equipmentParts, setEquipmentParts] = useLocalStorage<EquipmentPart[]>('fsm_equipmentParts', []);
+  const [inspectionTemplates, setInspectionTemplates] = useLocalStorage<InspectionTemplate[]>('fsm_inspTemplates', []);
+  const [inspectionRecords, setInspectionRecords] = useLocalStorage<InspectionRecord[]>('fsm_inspRecords', []);
+  const [instructions, setInstructions] = useLocalStorage<OperationalInstruction[]>('fsm_instructions', []);
 
   // Equipment
   const addEquipment = (e: Omit<Equipment, 'id' | 'createdAt'>) =>
@@ -99,12 +131,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteMaintenanceRecord = (id: string) =>
     setMaintenanceRecords(prev => prev.filter(x => x.id !== id));
 
+  // Operator Notes
+  const addOperatorNote = (n: Omit<OperatorNote, 'id'>) =>
+    setOperatorNotes(prev => [...prev, { ...n, id: uuidv4() }]);
+  const resolveOperatorNote = (id: string) =>
+    setOperatorNotes(prev =>
+      prev.map(x => x.id === id
+        ? { ...x, resolved: !x.resolved, resolvedDate: !x.resolved ? new Date().toISOString().split('T')[0] : undefined }
+        : x
+      )
+    );
+  const deleteOperatorNote = (id: string) =>
+    setOperatorNotes(prev => prev.filter(x => x.id !== id));
+
+  // Equipment Parts
+  const addEquipmentPart = (p: Omit<EquipmentPart, 'id'>) =>
+    setEquipmentParts(prev => [...prev, { ...p, id: uuidv4() }]);
+  const updateEquipmentPart = (p: EquipmentPart) =>
+    setEquipmentParts(prev => prev.map(x => (x.id === p.id ? p : x)));
+  const deleteEquipmentPart = (id: string) =>
+    setEquipmentParts(prev => prev.filter(x => x.id !== id));
+
+  // Inspection Templates
+  const addInspectionTemplate = (t: Omit<InspectionTemplate, 'id' | 'createdAt'>) =>
+    setInspectionTemplates(prev => [...prev, { ...t, id: uuidv4(), createdAt: new Date().toISOString().split('T')[0] }]);
+  const updateInspectionTemplate = (t: InspectionTemplate) =>
+    setInspectionTemplates(prev => prev.map(x => (x.id === t.id ? t : x)));
+  const deleteInspectionTemplate = (id: string) =>
+    setInspectionTemplates(prev => prev.filter(x => x.id !== id));
+
+  // Inspection Records
+  const addInspectionRecord = (r: Omit<InspectionRecord, 'id'>) =>
+    setInspectionRecords(prev => [...prev, { ...r, id: uuidv4() }]);
+  const deleteInspectionRecord = (id: string) =>
+    setInspectionRecords(prev => prev.filter(x => x.id !== id));
+
+  // Operational Instructions
+  const addInstruction = (i: Omit<OperationalInstruction, 'id' | 'createdAt'>) =>
+    setInstructions(prev => [...prev, { ...i, id: uuidv4(), createdAt: new Date().toISOString().split('T')[0] }]);
+  const updateInstruction = (i: OperationalInstruction) =>
+    setInstructions(prev => prev.map(x => (x.id === i.id ? i : x)));
+  const deleteInstruction = (id: string) =>
+    setInstructions(prev => prev.filter(x => x.id !== id));
+
   return (
     <AppContext.Provider value={{
       equipment, addEquipment, updateEquipment, deleteEquipment,
       workOrders, addWorkOrder, updateWorkOrder, deleteWorkOrder, completeWorkOrder,
       parts, addPart, updatePart, deletePart, adjustPartQty,
       maintenanceRecords, addMaintenanceRecord, deleteMaintenanceRecord,
+      operatorNotes, addOperatorNote, resolveOperatorNote, deleteOperatorNote,
+      equipmentParts, addEquipmentPart, updateEquipmentPart, deleteEquipmentPart,
+      inspectionTemplates, addInspectionTemplate, updateInspectionTemplate, deleteInspectionTemplate,
+      inspectionRecords, addInspectionRecord, deleteInspectionRecord,
+      instructions, addInstruction, updateInstruction, deleteInstruction,
     }}>
       {children}
     </AppContext.Provider>
