@@ -390,7 +390,12 @@ export function EquipmentDetail() {
                 { label: 'JD Equipment Type ID', value: eq.jdEquipmentTypeId },
                 { label: eq.hoursOrMilesLabel ?? 'Hours', value: eq.hoursOrMiles?.toLocaleString() },
                 { label: 'Last Service', value: eq.lastServiceDate ? format(new Date(eq.lastServiceDate), 'MMM d, yyyy') : undefined },
-                { label: 'Next Service Due', value: eq.nextServiceDue ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy') : undefined },
+                {
+                  label: 'Next Service Due',
+                  value: (eq.hoursOrMilesLabel ?? 'Hours') === 'Hours'
+                    ? (eq.nextServiceHours !== undefined ? `${eq.nextServiceHours.toLocaleString()} hrs` : undefined)
+                    : (eq.nextServiceDue ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy') : undefined),
+                },
               ].filter(r => r.value).map(r => (
                 <div key={r.label} className="flex justify-between py-1.5 border-b border-gray-50">
                   <span className="text-gray-500">{r.label}</span>
