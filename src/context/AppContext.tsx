@@ -181,15 +181,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (alreadyQueued) {
           if (qty > 0) alreadyQueued.quantity = (alreadyQueued.quantity ?? 0) + qty;
         } else {
-          toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other', quantity: qty > 0 ? qty : undefined });
+          toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other', quantity: qty > 0 ? qty : undefined, lastReplaced: item.replaced ? r.date : undefined });
         }
       }
     }
+    // Collect lastReplaced updates for parts marked as replaced
+    const replacedUpdates: { id: string; date: string }[] = [];
+    for (const item of r.items) {
+      const pn = item.partNumberUsed?.trim();
+      if (!pn || !item.replaced) continue;
+      const existing = equipmentParts.find(
+        p => p.equipmentId === r.equipmentId && p.partNumber.toLowerCase() === pn.toLowerCase()
+      );
+      if (existing) replacedUpdates.push({ id: existing.id, date: r.date });
+    }
+
     if (toAdd.length > 0) setEquipmentParts(prev => [...prev, ...toAdd]);
-    if (qtyUpdates.length > 0) {
+    if (qtyUpdates.length > 0 || replacedUpdates.length > 0) {
       setEquipmentParts(prev => prev.map(p => {
-        const upd = qtyUpdates.find(u => u.id === p.id);
-        return upd ? { ...p, quantity: (p.quantity ?? 0) + upd.delta } : p;
+        const qtyUpd = qtyUpdates.find(u => u.id === p.id);
+        const repUpd = replacedUpdates.find(u => u.id === p.id);
+        if (!qtyUpd && !repUpd) return p;
+        return {
+          ...p,
+          ...(qtyUpd ? { quantity: (p.quantity ?? 0) + qtyUpd.delta } : {}),
+          ...(repUpd ? { lastReplaced: repUpd.date } : {}),
+        };
       }));
     }
 
