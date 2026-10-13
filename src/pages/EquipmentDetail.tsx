@@ -202,17 +202,46 @@ export function EquipmentDetail() {
     setFillTemplateId(tId);
     const tmpl = inspectionTemplates.find(t => t.id === tId);
     if (!tmpl) return;
-    setFillItems(tmpl.items.map(item => ({
-      itemId: item.id,
-      label: item.label,
-      checkedOk: false,
-      added: false,
-      replaced: false,
-      adjusted: false,
-      repaired: false,
-      partNumberUsed: item.partNumber ?? '',
-      notes: '',
-    })));
+
+    // Previous records for this template+equipment, newest first
+    const prevRecords = inspectionRecords
+      .filter(r => r.equipmentId === id && r.templateId === tId)
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    setFillItems(tmpl.items.map(item => {
+      // 1. Template item's own stored part number
+      let partNum = item.partNumber ?? '';
+
+      // 2. Equipment parts list — match by description similarity
+      if (!partNum) {
+        const labelLower = item.label.toLowerCase();
+        const matched = myParts.find(p =>
+          p.description.toLowerCase().includes(labelLower) ||
+          labelLower.includes(p.description.toLowerCase())
+        );
+        if (matched) partNum = matched.partNumber;
+      }
+
+      // 3. Most recent past inspection — last used part number for this item
+      if (!partNum) {
+        for (const rec of prevRecords) {
+          const prev = rec.items.find(i => i.itemId === item.id);
+          if (prev?.partNumberUsed) { partNum = prev.partNumberUsed; break; }
+        }
+      }
+
+      return {
+        itemId: item.id,
+        label: item.label,
+        checkedOk: false,
+        added: false,
+        replaced: false,
+        adjusted: false,
+        repaired: false,
+        partNumberUsed: partNum,
+        notes: '',
+      };
+    }));
   }
   function toggleFillItemAction(idx: number, action: keyof CompletedInspectionItem) {
     setFillItems(prev => prev.map((it, i) =>
@@ -221,6 +250,9 @@ export function EquipmentDetail() {
   }
   function updateFillItemNotes(idx: number, value: string) {
     setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, notes: value } : it));
+  }
+  function updateFillItemPart(idx: number, value: string) {
+    setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, partNumberUsed: value } : it));
   }
   function saveFillInspection() {
     const tmpl = inspectionTemplates.find(t => t.id === fillTemplateId);
@@ -561,6 +593,7 @@ export function EquipmentDetail() {
                                   {INSP_ACTIONS.map(a => (
                                     <th key={a.key} className="text-center px-2 py-2 font-semibold text-gray-600 whitespace-nowrap">{a.label}</th>
                                   ))}
+                                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Part #</th>
                                   <th className="text-left px-4 py-2 font-semibold text-gray-600">Comments</th>
                                 </tr>
                               </thead>
@@ -584,6 +617,7 @@ export function EquipmentDetail() {
                                           }
                                         </td>
                                       ))}
+                                      <td className="px-3 py-1.5 font-mono text-gray-500 text-xs">{item.partNumberUsed || '—'}</td>
                                       <td className="px-4 py-1.5 text-gray-500">{item.notes || '—'}</td>
                                     </tr>
                                   );
@@ -841,6 +875,7 @@ export function EquipmentDetail() {
                       {INSP_ACTIONS.map(a => (
                         <th key={a.key} className="text-center px-3 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide whitespace-nowrap">{a.label}</th>
                       ))}
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Part #</th>
                       <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Comments</th>
                     </tr>
                   </thead>
@@ -858,6 +893,20 @@ export function EquipmentDetail() {
                             />
                           </td>
                         ))}
+                        <td className="px-3 py-2">
+                          <input
+                            className="input font-mono text-xs py-1"
+                            value={item.partNumberUsed ?? ''}
+                            onChange={e => updateFillItemPart(idx, e.target.value)}
+                            placeholder="Part #"
+                            list={`partlist-${idx}`}
+                          />
+                          <datalist id={`partlist-${idx}`}>
+                            {myParts.map(p => (
+                              <option key={p.id} value={p.partNumber}>{p.description}</option>
+                            ))}
+                          </datalist>
+                        </td>
                         <td className="px-4 py-2">
                           <input
                             className="input text-xs py-1"
