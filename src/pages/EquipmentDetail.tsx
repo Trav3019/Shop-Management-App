@@ -239,6 +239,7 @@ export function EquipmentDetail() {
         adjusted: false,
         repaired: false,
         partNumberUsed: partNum,
+        quantityUsed: undefined,
         notes: '',
       };
     }));
@@ -253,6 +254,9 @@ export function EquipmentDetail() {
   }
   function updateFillItemPart(idx: number, value: string) {
     setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, partNumberUsed: value } : it));
+  }
+  function updateFillItemQty(idx: number, value: string) {
+    setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, quantityUsed: value ? parseFloat(value) : undefined } : it));
   }
   function saveFillInspection() {
     const tmpl = inspectionTemplates.find(t => t.id === fillTemplateId);
@@ -605,6 +609,7 @@ export function EquipmentDetail() {
                                     <th key={a.key} className="text-center px-2 py-2 font-semibold text-gray-600 whitespace-nowrap">{a.label}</th>
                                   ))}
                                   <th className="text-left px-3 py-2 font-semibold text-gray-600">Part #</th>
+                                  <th className="text-center px-2 py-2 font-semibold text-gray-600">Qty</th>
                                   <th className="text-left px-4 py-2 font-semibold text-gray-600">Comments</th>
                                 </tr>
                               </thead>
@@ -629,6 +634,7 @@ export function EquipmentDetail() {
                                         </td>
                                       ))}
                                       <td className="px-3 py-1.5 font-mono text-gray-500 text-xs">{item.partNumberUsed || '—'}</td>
+                                      <td className="px-2 py-1.5 text-center text-gray-500">{item.quantityUsed ?? '—'}</td>
                                       <td className="px-4 py-1.5 text-gray-500">{item.notes || '—'}</td>
                                     </tr>
                                   );
@@ -887,6 +893,7 @@ export function EquipmentDetail() {
                         <th key={a.key} className="text-center px-3 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide whitespace-nowrap">{a.label}</th>
                       ))}
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Part #</th>
+                      <th className="text-center px-2 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Qty Used</th>
                       <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Comments</th>
                     </tr>
                   </thead>
@@ -917,6 +924,16 @@ export function EquipmentDetail() {
                               <option key={p.id} value={p.partNumber}>{p.description}</option>
                             ))}
                           </datalist>
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            className="input text-xs py-1 w-16 text-center"
+                            value={item.quantityUsed ?? ''}
+                            onChange={e => updateFillItemQty(idx, e.target.value)}
+                            placeholder="0"
+                          />
                         </td>
                         <td className="px-4 py-2">
                           <input

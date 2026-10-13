@@ -161,8 +161,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setInspectionTemplates(prev => prev.filter(x => x.id !== id));
 
   // Inspection Records
-  const addInspectionRecord = (r: Omit<InspectionRecord, 'id'>) =>
+  const addInspectionRecord = (r: Omit<InspectionRecord, 'id'>) => {
     setInspectionRecords(prev => [...prev, { ...r, id: uuidv4() }]);
+
+    // Auto-add new part numbers to the equipment's parts list
+    const toAdd: EquipmentPart[] = [];
+    for (const item of r.items) {
+      const pn = item.partNumberUsed?.trim();
+      if (!pn) continue;
+      const exists = equipmentParts.some(
+        p => p.equipmentId === r.equipmentId && p.partNumber.toLowerCase() === pn.toLowerCase()
+      );
+      const alreadyQueued = toAdd.some(p => p.partNumber.toLowerCase() === pn.toLowerCase());
+      if (!exists && !alreadyQueued) {
+        toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other' });
+      }
+    }
+    if (toAdd.length > 0) setEquipmentParts(prev => [...prev, ...toAdd]);
+
+    // Deduct used quantities from global parts inventory
+    for (const item of r.items) {
+      const pn = item.partNumberUsed?.trim();
+      const qty = item.quantityUsed ?? 0;
+      if (!pn || qty <= 0) continue;
+      const match = parts.find(p => p.partNumber.toLowerCase() === pn.toLowerCase());
+      if (match) {
+        setParts(prev => prev.map(p =>
+          p.id === match.id ? { ...p, quantity: Math.max(0, p.quantity - qty) } : p
+        ));
+      }
+    }
+  };
   const deleteInspectionRecord = (id: string) =>
     setInspectionRecords(prev => prev.filter(x => x.id !== id));
 

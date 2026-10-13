@@ -125,6 +125,7 @@ export interface CompletedInspectionItem {
   adjusted?: boolean;
   repaired?: boolean;
   partNumberUsed?: string;
+  quantityUsed?: number;
   notes?: string;
 }
 
