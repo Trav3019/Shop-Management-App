@@ -16,7 +16,7 @@ const CATEGORIES: EquipmentCategory[] = [
 const EMPTY_FORM: Omit<Equipment, 'id' | 'createdAt'> = {
   name: '', category: 'Tractor', make: '', model: '', year: undefined,
   serialNumber: '', jdEquipmentTypeId: '', status: 'operational', hoursOrMiles: undefined,
-  hoursOrMilesLabel: 'Hours', lastServiceDate: '', nextServiceDue: '', nextServiceHours: undefined, notes: '',
+  hoursOrMilesLabel: 'Hours', lastServiceDate: '', nextServiceDue: '', notes: '',
 };
 
 export function EquipmentPage() {
@@ -155,24 +155,21 @@ export function EquipmentPage() {
                   <span>{format(new Date(eq.lastServiceDate), 'MMM d, yyyy')}</span>
                 </div>
               )}
-              {(eq.hoursOrMilesLabel ?? 'Hours') === 'Hours' ? (
-                eq.nextServiceHours !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Next Due</span>
-                    <span className={(eq.hoursOrMiles ?? 0) >= eq.nextServiceHours ? 'text-red-600 font-medium' : ''}>
-                      {eq.nextServiceHours.toLocaleString()} hrs
+              {eq.nextServiceDue && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Next Due</span>
+                  {(eq.hoursOrMilesLabel ?? 'Hours') === 'Hours' ? (
+                    <span className={!isNaN(Number(eq.nextServiceDue)) && (eq.hoursOrMiles ?? 0) >= Number(eq.nextServiceDue) ? 'text-red-600 font-medium' : ''}>
+                      {isNaN(Number(eq.nextServiceDue))
+                        ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy')
+                        : `${Number(eq.nextServiceDue).toLocaleString()} hrs`}
                     </span>
-                  </div>
-                )
-              ) : (
-                eq.nextServiceDue && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Next Due</span>
+                  ) : (
                     <span className={new Date(eq.nextServiceDue) < new Date() ? 'text-red-600 font-medium' : ''}>
                       {format(new Date(eq.nextServiceDue), 'MMM d, yyyy')}
                     </span>
-                  </div>
-                )
+                  )}
+                </div>
               )}
             </div>
 
@@ -276,7 +273,7 @@ export function EquipmentPage() {
               {(form.hoursOrMilesLabel ?? 'Hours') === 'Hours' ? (
                 <>
                   <label className="label">Next Service Due (hrs)</label>
-                  <input type="number" min="0" className="input" value={form.nextServiceHours ?? ''} onChange={e => setForm(f => ({ ...f, nextServiceHours: e.target.value ? parseFloat(e.target.value) : undefined }))} placeholder="e.g. 5500" />
+                  <input type="number" min="0" className="input" value={form.nextServiceDue ?? ''} onChange={e => setForm(f => ({ ...f, nextServiceDue: e.target.value }))} placeholder="e.g. 5500" />
                 </>
               ) : (
                 <>

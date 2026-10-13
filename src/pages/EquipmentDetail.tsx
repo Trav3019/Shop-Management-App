@@ -392,9 +392,13 @@ export function EquipmentDetail() {
                 { label: 'Last Service', value: eq.lastServiceDate ? format(new Date(eq.lastServiceDate), 'MMM d, yyyy') : undefined },
                 {
                   label: 'Next Service Due',
-                  value: (eq.hoursOrMilesLabel ?? 'Hours') === 'Hours'
-                    ? (eq.nextServiceHours !== undefined ? `${eq.nextServiceHours.toLocaleString()} hrs` : undefined)
-                    : (eq.nextServiceDue ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy') : undefined),
+                  value: eq.nextServiceDue
+                    ? (eq.hoursOrMilesLabel ?? 'Hours') === 'Hours'
+                      ? isNaN(Number(eq.nextServiceDue))
+                        ? format(new Date(eq.nextServiceDue), 'MMM d, yyyy')
+                        : `${Number(eq.nextServiceDue).toLocaleString()} hrs`
+                      : format(new Date(eq.nextServiceDue), 'MMM d, yyyy')
+                    : undefined,
                 },
               ].filter(r => r.value).map(r => (
                 <div key={r.label} className="flex justify-between py-1.5 border-b border-gray-50">

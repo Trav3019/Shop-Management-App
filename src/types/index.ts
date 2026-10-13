@@ -32,7 +32,6 @@ export interface Equipment {
   hoursOrMilesLabel?: 'Hours' | 'Miles';
   lastServiceDate?: string;
   nextServiceDue?: string;
-  nextServiceHours?: number;
   notes?: string;
   createdAt: string;
 }
