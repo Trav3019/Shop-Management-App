@@ -97,7 +97,7 @@ export function EquipmentDetail() {
   const [editingPart, setEditingPart] = useState<EquipmentPart | null>(null);
   const [partForm, setPartForm] = useState<Omit<EquipmentPart, 'id' | 'equipmentId'>>({
     partNumber: '', description: '', category: 'Filters',
-    intervalHours: undefined, intervalMiles: undefined, nextServiceDate: '', lastReplaced: '', notes: '',
+    intervalHours: undefined, intervalMiles: undefined, lastReplacedHours: undefined, nextServiceDate: '', lastReplaced: '', notes: '',
   });
 
   // Inspection template state
@@ -157,12 +157,12 @@ export function EquipmentDetail() {
 
   function openAddPart() {
     setEditingPart(null);
-    setPartForm({ partNumber: '', description: '', category: 'Filters', intervalHours: undefined, intervalMiles: undefined, nextServiceDate: '', lastReplaced: '', notes: '' });
+    setPartForm({ partNumber: '', description: '', category: 'Filters', intervalHours: undefined, intervalMiles: undefined, lastReplacedHours: undefined, nextServiceDate: '', lastReplaced: '', notes: '' });
     setShowPartModal(true);
   }
   function openEditPart(p: EquipmentPart) {
     setEditingPart(p);
-    setPartForm({ partNumber: p.partNumber, description: p.description, category: p.category, intervalHours: p.intervalHours, intervalMiles: p.intervalMiles, nextServiceDate: p.nextServiceDate ?? '', lastReplaced: p.lastReplaced ?? '', notes: p.notes ?? '' });
+    setPartForm({ partNumber: p.partNumber, description: p.description, category: p.category, intervalHours: p.intervalHours, intervalMiles: p.intervalMiles, lastReplacedHours: p.lastReplacedHours, nextServiceDate: p.nextServiceDate ?? '', lastReplaced: p.lastReplaced ?? '', notes: p.notes ?? '' });
     setShowPartModal(true);
   }
   function savePart() {
@@ -466,7 +466,10 @@ export function EquipmentDetail() {
                         <th className="px-4 py-3 text-left">Next Service</th>
                       </>
                     ) : (
-                      <th className="px-4 py-3 text-left">Interval (hrs)</th>
+                      <>
+                        <th className="px-4 py-3 text-left">Interval (hrs)</th>
+                        <th className="px-4 py-3 text-left">Next Service (hrs)</th>
+                      </>
                     )}
                     <th className="px-4 py-3 text-left">Last Replaced</th>
                     <th className="px-4 py-3 text-left">Notes</th>
@@ -491,9 +494,25 @@ export function EquipmentDetail() {
                               : '—'}
                           </td>
                         </>
-                      ) : (
-                        <td className="px-4 py-3 text-gray-600">{p.intervalHours ?? '—'}</td>
-                      )}
+                      ) : (() => {
+                        const nextHrs = p.lastReplacedHours !== undefined && p.intervalHours
+                          ? p.lastReplacedHours + p.intervalHours
+                          : undefined;
+                        const currentHrs = eq.hoursOrMiles ?? 0;
+                        const overdue = nextHrs !== undefined && currentHrs >= nextHrs;
+                        return (
+                          <>
+                            <td className="px-4 py-3 text-gray-600">{p.intervalHours ?? '—'}</td>
+                            <td className="px-4 py-3">
+                              {nextHrs !== undefined
+                                ? <span className={overdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                                    {nextHrs.toLocaleString()} hrs
+                                  </span>
+                                : '—'}
+                            </td>
+                          </>
+                        );
+                      })()}
                       <td className="px-4 py-3 text-gray-600">
                         {p.lastReplaced ? format(new Date(p.lastReplaced), 'MMM d, yyyy') : '—'}
                       </td>
@@ -800,10 +819,16 @@ export function EquipmentDetail() {
                 </div>
               </>
             ) : (
-              <div>
-                <label className="label">Interval (hours)</label>
-                <input type="number" min="0" className="input" value={partForm.intervalHours ?? ''} onChange={e => setPartForm(f => ({ ...f, intervalHours: e.target.value ? parseInt(e.target.value) : undefined }))} placeholder="e.g. 500" />
-              </div>
+              <>
+                <div>
+                  <label className="label">Interval (hours)</label>
+                  <input type="number" min="0" className="input" value={partForm.intervalHours ?? ''} onChange={e => setPartForm(f => ({ ...f, intervalHours: e.target.value ? parseInt(e.target.value) : undefined }))} placeholder="e.g. 500" />
+                </div>
+                <div>
+                  <label className="label">Hours at Last Replacement</label>
+                  <input type="number" min="0" className="input" value={partForm.lastReplacedHours ?? ''} onChange={e => setPartForm(f => ({ ...f, lastReplacedHours: e.target.value ? parseFloat(e.target.value) : undefined }))} placeholder={`Current: ${eq.hoursOrMiles?.toLocaleString() ?? '—'}`} />
+                </div>
+              </>
             )}
             <div>
               <label className="label">Last Replaced</label>

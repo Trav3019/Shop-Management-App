@@ -99,6 +99,7 @@ export interface EquipmentPart {
   quantity?: number;
   intervalHours?: number;
   intervalMiles?: number;
+  lastReplacedHours?: number;
   nextServiceDate?: string;
   lastReplaced?: string;
   notes?: string;

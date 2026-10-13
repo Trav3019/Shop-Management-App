@@ -165,6 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setInspectionRecords(prev => [...prev, { ...r, id: uuidv4() }]);
 
     // Add new parts to equipment parts list, or accumulate quantity on existing ones
+    const currentEq = equipment.find(e => e.id === r.equipmentId);
     const toAdd: EquipmentPart[] = [];
     const qtyUpdates: { id: string; delta: number }[] = [];
     for (const item of r.items) {
@@ -181,19 +182,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (alreadyQueued) {
           if (qty > 0) alreadyQueued.quantity = (alreadyQueued.quantity ?? 0) + qty;
         } else {
-          toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other', quantity: qty > 0 ? qty : undefined, lastReplaced: item.replaced ? r.date : undefined });
+          toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other', quantity: qty > 0 ? qty : undefined, lastReplaced: item.replaced ? r.date : undefined, lastReplacedHours: item.replaced && currentEq?.hoursOrMiles !== undefined ? currentEq.hoursOrMiles : undefined });
         }
       }
     }
     // Collect lastReplaced updates for parts marked as replaced
-    const replacedUpdates: { id: string; date: string }[] = [];
+    const replacedUpdates: { id: string; date: string; hours?: number }[] = [];
     for (const item of r.items) {
       const pn = item.partNumberUsed?.trim();
       if (!pn || !item.replaced) continue;
       const existing = equipmentParts.find(
         p => p.equipmentId === r.equipmentId && p.partNumber.toLowerCase() === pn.toLowerCase()
       );
-      if (existing) replacedUpdates.push({ id: existing.id, date: r.date });
+      if (existing) replacedUpdates.push({ id: existing.id, date: r.date, hours: currentEq?.hoursOrMiles });
     }
 
     if (toAdd.length > 0) setEquipmentParts(prev => [...prev, ...toAdd]);
@@ -205,7 +206,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return {
           ...p,
           ...(qtyUpd ? { quantity: (p.quantity ?? 0) + qtyUpd.delta } : {}),
-          ...(repUpd ? { lastReplaced: repUpd.date } : {}),
+          ...(repUpd ? { lastReplaced: repUpd.date, ...(repUpd.hours !== undefined ? { lastReplacedHours: repUpd.hours } : {}) } : {}),
         };
       }));
     }
