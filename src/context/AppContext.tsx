@@ -164,20 +164,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addInspectionRecord = (r: Omit<InspectionRecord, 'id'>) => {
     setInspectionRecords(prev => [...prev, { ...r, id: uuidv4() }]);
 
-    // Auto-add new part numbers to the equipment's parts list
+    // Add new parts to equipment parts list, or accumulate quantity on existing ones
     const toAdd: EquipmentPart[] = [];
+    const qtyUpdates: { id: string; delta: number }[] = [];
     for (const item of r.items) {
       const pn = item.partNumberUsed?.trim();
       if (!pn) continue;
-      const exists = equipmentParts.some(
+      const qty = item.quantityUsed ?? 0;
+      const existing = equipmentParts.find(
         p => p.equipmentId === r.equipmentId && p.partNumber.toLowerCase() === pn.toLowerCase()
       );
-      const alreadyQueued = toAdd.some(p => p.partNumber.toLowerCase() === pn.toLowerCase());
-      if (!exists && !alreadyQueued) {
-        toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other' });
+      if (existing) {
+        if (qty > 0) qtyUpdates.push({ id: existing.id, delta: qty });
+      } else {
+        const alreadyQueued = toAdd.find(p => p.partNumber.toLowerCase() === pn.toLowerCase());
+        if (alreadyQueued) {
+          if (qty > 0) alreadyQueued.quantity = (alreadyQueued.quantity ?? 0) + qty;
+        } else {
+          toAdd.push({ id: uuidv4(), equipmentId: r.equipmentId, partNumber: pn, description: item.label, category: 'Other', quantity: qty > 0 ? qty : undefined });
+        }
       }
     }
     if (toAdd.length > 0) setEquipmentParts(prev => [...prev, ...toAdd]);
+    if (qtyUpdates.length > 0) {
+      setEquipmentParts(prev => prev.map(p => {
+        const upd = qtyUpdates.find(u => u.id === p.id);
+        return upd ? { ...p, quantity: (p.quantity ?? 0) + upd.delta } : p;
+      }));
+    }
 
     // Deduct used quantities from global parts inventory
     for (const item of r.items) {

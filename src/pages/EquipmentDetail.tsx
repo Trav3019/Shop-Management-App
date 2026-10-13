@@ -457,6 +457,7 @@ export function EquipmentDetail() {
                     <th className="px-4 py-3 text-left">Part #</th>
                     <th className="px-4 py-3 text-left">Description</th>
                     <th className="px-4 py-3 text-left">Category</th>
+                    <th className="px-4 py-3 text-center">Qty Used</th>
                     <th className="px-4 py-3 text-left">Interval (hrs)</th>
                     <th className="px-4 py-3 text-left">Last Replaced</th>
                     <th className="px-4 py-3 text-left">Notes</th>
@@ -469,6 +470,7 @@ export function EquipmentDetail() {
                       <td className="px-4 py-3 font-mono text-xs">{p.partNumber}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{p.description}</td>
                       <td className="px-4 py-3 text-gray-600">{p.category}</td>
+                      <td className="px-4 py-3 text-center text-gray-600 font-medium">{p.quantity ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{p.intervalHours ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-600">
                         {p.lastReplaced ? format(new Date(p.lastReplaced), 'MMM d, yyyy') : '—'}

@@ -96,6 +96,7 @@ export interface EquipmentPart {
   partNumber: string;
   description: string;
   category: string;
+  quantity?: number;
   intervalHours?: number;
   lastReplaced?: string;
   notes?: string;
