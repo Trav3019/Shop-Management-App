@@ -118,7 +118,11 @@ export interface InspectionTemplate {
 export interface CompletedInspectionItem {
   itemId: string;
   label: string;
-  status: 'ok' | 'replaced' | 'repaired' | 'needs_attention' | 'na';
+  checkedOk?: boolean;
+  added?: boolean;
+  replaced?: boolean;
+  adjusted?: boolean;
+  repaired?: boolean;
   partNumberUsed?: string;
   notes?: string;
 }
@@ -129,7 +133,9 @@ export interface InspectionRecord {
   templateName: string;
   equipmentId: string;
   date: string;
+  dateFinished?: string;
   technician?: string;
+  division?: 'Potato' | 'Grain' | 'Irrigation' | 'Shop' | 'Yard';
   items: CompletedInspectionItem[];
   notes?: string;
 }

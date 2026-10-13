@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Plus, Trash2, Edit2, ChevronDown, ChevronRight,
-  CheckCircle2, Circle, AlertTriangle, ClipboardCheck, BookOpen,
+  CheckCircle2, Circle, ClipboardCheck, BookOpen,
   Wrench, StickyNote, List,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -27,6 +27,8 @@ const INSTRUCTION_CATEGORIES: { value: OperationalInstruction['category']; label
   { value: 'general', label: 'General' },
 ];
 
+const DIVISIONS = ['Potato', 'Grain', 'Irrigation', 'Shop', 'Yard'] as const;
+
 type Tab = 'overview' | 'parts' | 'inspections' | 'notes' | 'howto';
 
 const SEVERITY_CONFIG = {
@@ -36,13 +38,44 @@ const SEVERITY_CONFIG = {
   urgent: { label: 'Urgent', cls: 'bg-red-100 text-red-800' },
 };
 
-const ITEM_STATUS_LABELS: Record<CompletedInspectionItem['status'], string> = {
-  ok: 'OK',
-  replaced: 'Replaced',
-  repaired: 'Repaired',
-  needs_attention: 'Needs Attention',
-  na: 'N/A',
-};
+const INSP_ACTIONS: { key: keyof CompletedInspectionItem; label: string }[] = [
+  { key: 'checkedOk', label: 'Checked/OK' },
+  { key: 'added',     label: 'Added' },
+  { key: 'replaced',  label: 'Replaced' },
+  { key: 'adjusted',  label: 'Adjusted' },
+  { key: 'repaired',  label: 'Repaired' },
+];
+
+// Pre-loaded tractor inspection items matching the WJ Siemens form
+const TRACTOR_PRESET_ITEMS: Omit<InspectionItem, 'id'>[] = [
+  { label: 'Cab Air Filters' },
+  { label: 'Engine Air Filter' },
+  { label: 'Engine Coolant-Antifreeze' },
+  { label: 'Engine Oil' },
+  { label: 'Engine Oil Filter' },
+  { label: 'Fuel Filter' },
+  { label: 'Transmission Oil' },
+  { label: 'Differential Oil' },
+  { label: 'Hydraulic Oil' },
+  { label: 'Hydraulic Oil Filter' },
+  { label: 'Fan Belts' },
+  { label: 'Power Steering Fluid' },
+  { label: 'Windshield & Wipers' },
+  { label: 'Windshield Washer Fluid' },
+  { label: 'Brake Fluid' },
+  { label: 'Brake Lines' },
+  { label: 'Emergency Brake' },
+  { label: 'Brake Shoes/Pads' },
+  { label: 'Tires' },
+  { label: 'Wheel Bearings/Hub Lube' },
+  { label: 'Tie Rod Ends' },
+  { label: 'Battery/s' },
+  { label: 'Lights' },
+  { label: 'Reflectors' },
+  { label: 'Horn' },
+  { label: 'Driveshaft - U Joints' },
+  { label: 'Grease Fittings' },
+];
 
 export function EquipmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +114,8 @@ export function EquipmentDetail() {
   const [fillTemplateId, setFillTemplateId] = useState('');
   const [fillItems, setFillItems] = useState<CompletedInspectionItem[]>([]);
   const [fillTechnician, setFillTechnician] = useState('');
+  const [fillDivision, setFillDivision] = useState('');
+  const [fillDateFinished, setFillDateFinished] = useState('');
   const [fillNotes, setFillNotes] = useState('');
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set());
 
@@ -159,7 +194,8 @@ export function EquipmentDetail() {
   function openFillModal() {
     setFillTemplateId(myTemplates[0]?.id ?? '');
     setFillItems([]);
-    setFillTechnician(''); setFillNotes('');
+    setFillTechnician(''); setFillDivision(''); setFillDateFinished(''); setFillNotes('');
+    if (myTemplates[0]) onSelectTemplate(myTemplates[0].id);
     setShowFillModal(true);
   }
   function onSelectTemplate(tId: string) {
@@ -169,13 +205,22 @@ export function EquipmentDetail() {
     setFillItems(tmpl.items.map(item => ({
       itemId: item.id,
       label: item.label,
-      status: 'ok' as const,
+      checkedOk: false,
+      added: false,
+      replaced: false,
+      adjusted: false,
+      repaired: false,
       partNumberUsed: item.partNumber ?? '',
       notes: '',
     })));
   }
-  function updateFillItem(idx: number, field: keyof CompletedInspectionItem, value: string) {
-    setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  function toggleFillItemAction(idx: number, action: keyof CompletedInspectionItem) {
+    setFillItems(prev => prev.map((it, i) =>
+      i === idx ? { ...it, [action]: !it[action as keyof typeof it] } : it
+    ));
+  }
+  function updateFillItemNotes(idx: number, value: string) {
+    setFillItems(prev => prev.map((it, i) => i === idx ? { ...it, notes: value } : it));
   }
   function saveFillInspection() {
     const tmpl = inspectionTemplates.find(t => t.id === fillTemplateId);
@@ -185,7 +230,9 @@ export function EquipmentDetail() {
       templateName: tmpl.name,
       equipmentId: id!,
       date: new Date().toISOString().split('T')[0],
+      dateFinished: fillDateFinished || undefined,
       technician: fillTechnician || undefined,
+      division: (fillDivision as typeof DIVISIONS[number]) || undefined,
       items: fillItems,
       notes: fillNotes || undefined,
     });
@@ -283,7 +330,6 @@ export function EquipmentDetail() {
       {/* ===== OVERVIEW TAB ===== */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Info grid */}
           <div className="card p-5">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><List size={16} /> Equipment Info</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -311,7 +357,6 @@ export function EquipmentDetail() {
             </div>
           </div>
 
-          {/* Open work orders */}
           <div className="card p-5">
             <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Wrench size={16} /> Open Work Orders ({openWorkOrders.length})</h2>
             {openWorkOrders.length === 0 ? (
@@ -328,7 +373,6 @@ export function EquipmentDetail() {
             )}
           </div>
 
-          {/* Unresolved operator notes */}
           <div className="card p-5">
             <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><StickyNote size={16} /> Open Operator Notes ({unresolvedNotes.length})</h2>
             {unresolvedNotes.length === 0 ? (
@@ -401,14 +445,14 @@ export function EquipmentDetail() {
       {/* ===== INSPECTIONS TAB ===== */}
       {activeTab === 'inspections' && (
         <div className="space-y-6">
-          {/* Templates section */}
+          {/* Templates */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2"><ClipboardCheck size={16} /> Templates ({myTemplates.length})</h2>
               <button onClick={() => { setTemplateName(''); setTemplateItems([]); setShowTemplateModal(true); }} className="btn-primary"><Plus size={15} /> New Template</button>
             </div>
             {myTemplates.length === 0 ? (
-              <div className="card p-8 text-center text-gray-400 text-sm">No templates yet.</div>
+              <div className="card p-8 text-center text-gray-400 text-sm">No templates yet. Create one to start filling out inspections.</div>
             ) : (
               <div className="space-y-2">
                 {myTemplates.map(tmpl => {
@@ -428,10 +472,7 @@ export function EquipmentDetail() {
                           <span className="font-medium text-gray-900">{tmpl.name}</span>
                           <span className="text-xs text-gray-500">({tmpl.items.length} items)</span>
                         </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteInspectionTemplate(tmpl.id); }}
-                          className="p-1.5 rounded text-red-400 hover:bg-red-50"
-                        >
+                        <button onClick={e => { e.stopPropagation(); deleteInspectionTemplate(tmpl.id); }} className="p-1.5 rounded text-red-400 hover:bg-red-50">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -456,15 +497,11 @@ export function EquipmentDetail() {
             )}
           </div>
 
-          {/* Completed inspections section */}
+          {/* Completed inspections */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-gray-900">Completed Inspections ({myRecords.length})</h2>
-              <button
-                onClick={openFillModal}
-                disabled={myTemplates.length === 0}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <button onClick={openFillModal} disabled={myTemplates.length === 0} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                 <Plus size={15} /> Fill Out Inspection
               </button>
             </div>
@@ -474,6 +511,7 @@ export function EquipmentDetail() {
               <div className="space-y-2">
                 {myRecords.map(rec => {
                   const expanded = expandedRecords.has(rec.id);
+                  const actioned = rec.items.filter(i => i.replaced || i.repaired || i.adjusted || i.added);
                   return (
                     <div key={rec.id} className="card">
                       <div
@@ -484,45 +522,83 @@ export function EquipmentDetail() {
                           return n;
                         })}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {expanded ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
                           <div>
                             <span className="font-medium text-gray-900">{rec.templateName}</span>
                             <span className="text-xs text-gray-500 ml-2">{format(new Date(rec.date), 'MMM d, yyyy')}</span>
                             {rec.technician && <span className="text-xs text-gray-500 ml-2">· {rec.technician}</span>}
+                            {rec.division && <span className="text-xs text-gray-500 ml-2">· {rec.division}</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">{rec.items.length} items</span>
-                          <button
-                            onClick={e => { e.stopPropagation(); deleteInspectionRecord(rec.id); }}
-                            className="p-1.5 rounded text-red-400 hover:bg-red-50"
-                          >
+                          {actioned.length > 0 && (
+                            <span className="text-xs bg-orange-100 text-orange-700 font-medium px-2 py-0.5 rounded-full">{actioned.length} actioned</span>
+                          )}
+                          <button onClick={e => { e.stopPropagation(); deleteInspectionRecord(rec.id); }} className="p-1.5 rounded text-red-400 hover:bg-red-50">
                             <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
                       {expanded && (
-                        <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-2">
-                          {rec.items.map(item => (
-                            <div key={item.itemId} className="flex items-start gap-3 text-sm">
-                              {item.status === 'ok' || item.status === 'na'
-                                ? <CheckCircle2 size={15} className="text-green-500 flex-shrink-0 mt-0.5" />
-                                : item.status === 'needs_attention'
-                                  ? <AlertTriangle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
-                                  : <CheckCircle2 size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                              }
-                              <div className="flex-1">
-                                <span className="text-gray-800">{item.label}</span>
-                                <span className={`ml-2 text-xs font-medium ${item.status === 'needs_attention' ? 'text-red-600' : 'text-gray-500'}`}>
-                                  {ITEM_STATUS_LABELS[item.status]}
-                                </span>
-                                {item.partNumberUsed && <span className="ml-2 text-xs text-gray-400 font-mono">#{item.partNumberUsed}</span>}
-                                {item.notes && <p className="text-xs text-gray-500 mt-0.5">{item.notes}</p>}
-                              </div>
+                        <div className="border-t border-gray-100">
+                          {/* Meta info */}
+                          <div className="px-4 py-2 bg-gray-50 flex flex-wrap gap-4 text-xs text-gray-600">
+                            <span><span className="text-gray-400">Unit:</span> {eq.name}</span>
+                            {eq.year && <span><span className="text-gray-400">Year:</span> {eq.year}</span>}
+                            <span><span className="text-gray-400">Make:</span> {eq.make}</span>
+                            {eq.hoursOrMiles !== undefined && <span><span className="text-gray-400">{eq.hoursOrMilesLabel ?? 'Hours'}:</span> {eq.hoursOrMiles.toLocaleString()}</span>}
+                            {rec.division && <span><span className="text-gray-400">Division:</span> {rec.division}</span>}
+                            {rec.technician && <span><span className="text-gray-400">Employee:</span> {rec.technician}</span>}
+                            {rec.dateFinished && <span><span className="text-gray-400">Finished:</span> {format(new Date(rec.dateFinished), 'MMM d, yyyy')}</span>}
+                          </div>
+                          {/* Items table */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                  <th className="text-left px-4 py-2 font-semibold text-gray-600 w-1/3">Description</th>
+                                  {INSP_ACTIONS.map(a => (
+                                    <th key={a.key} className="text-center px-2 py-2 font-semibold text-gray-600 whitespace-nowrap">{a.label}</th>
+                                  ))}
+                                  <th className="text-left px-4 py-2 font-semibold text-gray-600">Comments</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {rec.items.map(item => {
+                                  const hasAction = item.replaced || item.repaired || item.adjusted || item.added;
+                                  return (
+                                    <tr key={item.itemId} className={hasAction ? 'bg-yellow-50' : ''}>
+                                      <td className="px-4 py-1.5 text-gray-700 font-medium">{item.label}</td>
+                                      {INSP_ACTIONS.map(a => (
+                                        <td key={a.key} className="text-center px-2 py-1.5">
+                                          {item[a.key as keyof typeof item]
+                                            ? <CheckCircle2 size={14} className={
+                                                a.key === 'checkedOk' ? 'text-green-500 mx-auto' :
+                                                a.key === 'added' ? 'text-blue-500 mx-auto' :
+                                                a.key === 'replaced' ? 'text-orange-500 mx-auto' :
+                                                a.key === 'adjusted' ? 'text-purple-500 mx-auto' :
+                                                'text-red-500 mx-auto'
+                                              } />
+                                            : <span className="text-gray-200">—</span>
+                                          }
+                                        </td>
+                                      ))}
+                                      <td className="px-4 py-1.5 text-gray-500">{item.notes || '—'}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          {rec.notes && (
+                            <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-500">
+                              <span className="font-medium text-gray-600">Notes: </span>{rec.notes}
                             </div>
-                          ))}
-                          {rec.notes && <p className="text-xs text-gray-500 pt-2 border-t border-gray-100 mt-2">{rec.notes}</p>}
+                          )}
+                          <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400 italic">
+                            NOTE: Grease all fittings at each service
+                          </div>
                         </div>
                       )}
                     </div>
@@ -668,11 +744,20 @@ export function EquipmentDetail() {
               <input className="input" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. Spring Pre-Season Check" />
             </div>
             <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-medium text-gray-700">Add Items</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-700">Checklist Items</h3>
+                <button
+                  type="button"
+                  className="text-xs text-[#367C2B] hover:underline font-medium"
+                  onClick={() => setTemplateItems(TRACTOR_PRESET_ITEMS)}
+                >
+                  Load Tractor Preset ({TRACTOR_PRESET_ITEMS.length} items)
+                </button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-1">
+                <div>
                   <label className="label">Item Label *</label>
-                  <input className="input" value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="e.g. Check engine oil" />
+                  <input className="input" value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTemplateItem()} placeholder="e.g. Engine Oil Filter" />
                 </div>
                 <div>
                   <label className="label">Part # (optional)</label>
@@ -687,9 +772,9 @@ export function EquipmentDetail() {
                 <Plus size={14} /> Add Item
               </button>
               {templateItems.length > 0 && (
-                <ul className="space-y-1.5 pt-2">
+                <ul className="space-y-1 pt-2 max-h-48 overflow-y-auto">
                   {templateItems.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2">
+                    <li key={idx} className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-1.5">
                       <Circle size={12} className="text-gray-300 flex-shrink-0" />
                       <span className="flex-1 text-gray-800">{item.label}</span>
                       {item.partNumber && <span className="text-xs text-gray-400 font-mono">#{item.partNumber}</span>}
@@ -713,47 +798,93 @@ export function EquipmentDetail() {
       {showFillModal && (
         <Modal title="Fill Out Inspection" onClose={() => setShowFillModal(false)} size="xl">
           <div className="space-y-4">
-            <div>
-              <label className="label">Template *</label>
-              <select className="select" value={fillTemplateId} onChange={e => onSelectTemplate(e.target.value)}>
-                <option value="">Select a template...</option>
-                {myTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+            {/* Header fields */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="col-span-2">
+                <label className="label">Template *</label>
+                <select className="select" value={fillTemplateId} onChange={e => onSelectTemplate(e.target.value)}>
+                  <option value="">Select a template...</option>
+                  {myTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Employee Name</label>
+                <input className="input" value={fillTechnician} onChange={e => setFillTechnician(e.target.value)} placeholder="Name" />
+              </div>
+              <div>
+                <label className="label">Division</label>
+                <select className="select" value={fillDivision} onChange={e => setFillDivision(e.target.value)}>
+                  <option value="">—</option>
+                  {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
             </div>
+
+            {/* Unit info strip */}
+            <div className="flex flex-wrap gap-4 text-xs bg-gray-50 rounded-xl px-4 py-2.5 text-gray-600">
+              <span><span className="text-gray-400">Unit:</span> <strong>{eq.name}</strong></span>
+              {eq.year && <span><span className="text-gray-400">Year:</span> <strong>{eq.year}</strong></span>}
+              <span><span className="text-gray-400">Make:</span> <strong>{eq.make}</strong></span>
+              <span><span className="text-gray-400">Model:</span> <strong>{eq.model}</strong></span>
+              {eq.hoursOrMiles !== undefined && (
+                <span><span className="text-gray-400">{eq.hoursOrMilesLabel ?? 'Hours'}:</span> <strong>{eq.hoursOrMiles.toLocaleString()}</strong></span>
+              )}
+            </div>
+
+            {/* Items table */}
             {fillItems.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-700">Inspection Items</h3>
-                {fillItems.map((item, idx) => (
-                  <div key={item.itemId} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                    <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="label">Status</label>
-                        <select className="select" value={item.status} onChange={e => updateFillItem(idx, 'status', e.target.value)}>
-                          {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Part # Used</label>
-                        <input className="input" value={item.partNumberUsed ?? ''} onChange={e => updateFillItem(idx, 'partNumberUsed', e.target.value)} placeholder="Part number" />
-                      </div>
-                      <div>
-                        <label className="label">Notes</label>
-                        <input className="input" value={item.notes ?? ''} onChange={e => updateFillItem(idx, 'notes', e.target.value)} placeholder="Optional notes" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Description</th>
+                      {INSP_ACTIONS.map(a => (
+                        <th key={a.key} className="text-center px-3 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide whitespace-nowrap">{a.label}</th>
+                      ))}
+                      <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wide">Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {fillItems.map((item, idx) => (
+                      <tr key={item.itemId} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium text-gray-800 text-sm">{item.label}</td>
+                        {INSP_ACTIONS.map(a => (
+                          <td key={a.key} className="text-center px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={!!item[a.key as keyof typeof item]}
+                              onChange={() => toggleFillItemAction(idx, a.key)}
+                              className="w-4 h-4 rounded cursor-pointer accent-[#367C2B]"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-4 py-2">
+                          <input
+                            className="input text-xs py-1"
+                            value={item.notes ?? ''}
+                            onChange={e => updateFillItemNotes(idx, e.target.value)}
+                            placeholder="Comments"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 italic">
+                  NOTE: Grease all fittings at each service
+                </div>
               </div>
             )}
+
+            {/* Footer */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
               <div>
-                <label className="label">Technician</label>
-                <input className="input" value={fillTechnician} onChange={e => setFillTechnician(e.target.value)} placeholder="Technician name" />
+                <label className="label">Overall Notes</label>
+                <input className="input" value={fillNotes} onChange={e => setFillNotes(e.target.value)} placeholder="Any additional notes" />
               </div>
               <div>
-                <label className="label">Overall Notes</label>
-                <input className="input" value={fillNotes} onChange={e => setFillNotes(e.target.value)} placeholder="Any overall notes" />
+                <label className="label">Date Finished</label>
+                <input type="date" className="input" value={fillDateFinished} onChange={e => setFillDateFinished(e.target.value)} />
               </div>
             </div>
           </div>
@@ -772,13 +903,7 @@ export function EquipmentDetail() {
           <div className="space-y-4">
             <div>
               <label className="label">Note *</label>
-              <textarea
-                className="textarea"
-                rows={3}
-                value={noteForm.note}
-                onChange={e => setNoteForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="Describe the observation..."
-              />
+              <textarea className="textarea" rows={3} value={noteForm.note} onChange={e => setNoteForm(f => ({ ...f, note: e.target.value }))} placeholder="Describe the observation..." />
             </div>
             <div>
               <label className="label">Severity</label>
@@ -817,13 +942,7 @@ export function EquipmentDetail() {
             </div>
             <div>
               <label className="label">Content *</label>
-              <textarea
-                className="textarea"
-                rows={8}
-                value={guideForm.content}
-                onChange={e => setGuideForm(f => ({ ...f, content: e.target.value }))}
-                placeholder="Step-by-step instructions or information..."
-              />
+              <textarea className="textarea" rows={8} value={guideForm.content} onChange={e => setGuideForm(f => ({ ...f, content: e.target.value }))} placeholder="Step-by-step instructions or information..." />
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
