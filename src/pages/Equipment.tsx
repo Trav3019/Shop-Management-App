@@ -176,7 +176,7 @@ export function EquipmentPage() {
               </button>
               {eq.serialNumber && (
                 <a
-                  href={`https://partscatalog.deere.com/jdrc/search?serialNumber=${encodeURIComponent(eq.serialNumber)}`}
+                  href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="JD Parts Catalog"

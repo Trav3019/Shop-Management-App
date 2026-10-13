@@ -340,7 +340,7 @@ export function EquipmentDetail() {
         </div>
         {eq.serialNumber && (
           <a
-            href={`https://partscatalog.deere.com/jdrc/search?serialNumber=${encodeURIComponent(eq.serialNumber)}`}
+            href={`https://partscatalog.deere.com/jdrc/navigation/pin/${encodeURIComponent(eq.serialNumber)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary flex items-center gap-1.5 text-sm flex-shrink-0"
