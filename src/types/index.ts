@@ -98,6 +98,8 @@ export interface EquipmentPart {
   category: string;
   quantity?: number;
   intervalHours?: number;
+  intervalMiles?: number;
+  nextServiceDate?: string;
   lastReplaced?: string;
   notes?: string;
 }

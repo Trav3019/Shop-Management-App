@@ -97,7 +97,7 @@ export function EquipmentDetail() {
   const [editingPart, setEditingPart] = useState<EquipmentPart | null>(null);
   const [partForm, setPartForm] = useState<Omit<EquipmentPart, 'id' | 'equipmentId'>>({
     partNumber: '', description: '', category: 'Filters',
-    intervalHours: undefined, lastReplaced: '', notes: '',
+    intervalHours: undefined, intervalMiles: undefined, nextServiceDate: '', lastReplaced: '', notes: '',
   });
 
   // Inspection template state
@@ -153,14 +153,16 @@ export function EquipmentDetail() {
   const openWorkOrders = workOrders.filter(w => w.equipmentId === id && w.status !== 'completed');
 
   // ---- Part handlers ----
+  const isMilesBased = (eq.hoursOrMilesLabel ?? 'Hours') === 'Miles';
+
   function openAddPart() {
     setEditingPart(null);
-    setPartForm({ partNumber: '', description: '', category: 'Filters', intervalHours: undefined, lastReplaced: '', notes: '' });
+    setPartForm({ partNumber: '', description: '', category: 'Filters', intervalHours: undefined, intervalMiles: undefined, nextServiceDate: '', lastReplaced: '', notes: '' });
     setShowPartModal(true);
   }
   function openEditPart(p: EquipmentPart) {
     setEditingPart(p);
-    setPartForm({ partNumber: p.partNumber, description: p.description, category: p.category, intervalHours: p.intervalHours, lastReplaced: p.lastReplaced ?? '', notes: p.notes ?? '' });
+    setPartForm({ partNumber: p.partNumber, description: p.description, category: p.category, intervalHours: p.intervalHours, intervalMiles: p.intervalMiles, nextServiceDate: p.nextServiceDate ?? '', lastReplaced: p.lastReplaced ?? '', notes: p.notes ?? '' });
     setShowPartModal(true);
   }
   function savePart() {
@@ -458,7 +460,14 @@ export function EquipmentDetail() {
                     <th className="px-4 py-3 text-left">Description</th>
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-center">Qty Used</th>
-                    <th className="px-4 py-3 text-left">Interval (hrs)</th>
+                    {isMilesBased ? (
+                      <>
+                        <th className="px-4 py-3 text-left">Interval (mi)</th>
+                        <th className="px-4 py-3 text-left">Next Service</th>
+                      </>
+                    ) : (
+                      <th className="px-4 py-3 text-left">Interval (hrs)</th>
+                    )}
                     <th className="px-4 py-3 text-left">Last Replaced</th>
                     <th className="px-4 py-3 text-left">Notes</th>
                     <th className="px-4 py-3 text-right"></th>
@@ -471,7 +480,20 @@ export function EquipmentDetail() {
                       <td className="px-4 py-3 font-medium text-gray-900">{p.description}</td>
                       <td className="px-4 py-3 text-gray-600">{p.category}</td>
                       <td className="px-4 py-3 text-center text-gray-600 font-medium">{p.quantity ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.intervalHours ?? '—'}</td>
+                      {isMilesBased ? (
+                        <>
+                          <td className="px-4 py-3 text-gray-600">{p.intervalMiles ?? '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {p.nextServiceDate
+                              ? <span className={new Date(p.nextServiceDate) < new Date() ? 'text-red-600 font-medium' : ''}>
+                                  {format(new Date(p.nextServiceDate), 'MMM d, yyyy')}
+                                </span>
+                              : '—'}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="px-4 py-3 text-gray-600">{p.intervalHours ?? '—'}</td>
+                      )}
                       <td className="px-4 py-3 text-gray-600">
                         {p.lastReplaced ? format(new Date(p.lastReplaced), 'MMM d, yyyy') : '—'}
                       </td>
@@ -766,10 +788,23 @@ export function EquipmentDetail() {
               <label className="label">Description *</label>
               <input className="input" value={partForm.description} onChange={e => setPartForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Engine Oil Filter" />
             </div>
-            <div>
-              <label className="label">Interval Hours</label>
-              <input type="number" min="0" className="input" value={partForm.intervalHours ?? ''} onChange={e => setPartForm(f => ({ ...f, intervalHours: e.target.value ? parseInt(e.target.value) : undefined }))} placeholder="e.g. 500" />
-            </div>
+            {isMilesBased ? (
+              <>
+                <div>
+                  <label className="label">Interval (miles)</label>
+                  <input type="number" min="0" className="input" value={partForm.intervalMiles ?? ''} onChange={e => setPartForm(f => ({ ...f, intervalMiles: e.target.value ? parseInt(e.target.value) : undefined }))} placeholder="e.g. 5000" />
+                </div>
+                <div>
+                  <label className="label">Next Service Date</label>
+                  <input type="date" className="input" value={partForm.nextServiceDate ?? ''} onChange={e => setPartForm(f => ({ ...f, nextServiceDate: e.target.value }))} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="label">Interval (hours)</label>
+                <input type="number" min="0" className="input" value={partForm.intervalHours ?? ''} onChange={e => setPartForm(f => ({ ...f, intervalHours: e.target.value ? parseInt(e.target.value) : undefined }))} placeholder="e.g. 500" />
+              </div>
+            )}
             <div>
               <label className="label">Last Replaced</label>
               <input type="date" className="input" value={partForm.lastReplaced ?? ''} onChange={e => setPartForm(f => ({ ...f, lastReplaced: e.target.value }))} />
