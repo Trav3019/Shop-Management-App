@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, ClipboardList } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/Modal';
@@ -19,6 +20,7 @@ const EMPTY_FORM: Omit<Equipment, 'id' | 'createdAt'> = {
 };
 
 export function EquipmentPage() {
+  const navigate = useNavigate();
   const { equipment, addEquipment, updateEquipment, deleteEquipment, workOrders } = useApp();
   const [filterCategory, setFilterCategory] = useState<'all' | EquipmentCategory>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | EquipmentStatus>('all');
@@ -167,11 +169,10 @@ export function EquipmentPage() {
 
             <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
               <button
-                onClick={() => setViewEq(eq)}
+                onClick={() => navigate(`/equipment/${eq.id}`)}
                 className="flex-1 text-xs text-jd-green font-medium hover:underline flex items-center justify-center gap-1"
               >
-                <ClipboardList size={13} />
-                Work Orders ({getWorkOrders(eq.id).length})
+                View Details →
               </button>
               <button onClick={() => openEdit(eq)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
                 <Edit2 size={15} />
