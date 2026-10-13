@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, AlertTriangle, Minus } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, Search, Edit2, Trash2, AlertTriangle, Minus, ScanLine, Keyboard } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/Modal';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { Part } from '../types';
 
 const PART_CATEGORIES = [
@@ -15,6 +16,12 @@ const EMPTY_FORM: Omit<Part, 'id'> = {
   vendor: '', cost: undefined, location: '', notes: '',
 };
 
+type ScanStep =
+  | { stage: 'scanning' }
+  | { stage: 'found'; part: Part; addQty: number }
+  | { stage: 'notfound'; partNumber: string }
+  | { stage: 'manual' };
+
 export function PartsPage() {
   const { parts, addPart, updatePart, deletePart, adjustPartQty } = useApp();
   const [filterCategory, setFilterCategory] = useState<'all' | string>('all');
@@ -23,6 +30,13 @@ export function PartsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState<Part | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  // Scan modal state
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanStep, setScanStep] = useState<ScanStep>({ stage: 'scanning' });
+  const [scanTab, setScanTab] = useState<'camera' | 'manual'>('camera');
+  const [manualInput, setManualInput] = useState('');
+  const [scanConfirmed, setScanConfirmed] = useState(false);
 
   const lowStock = parts.filter(p => p.quantity > 0 && p.quantity <= p.minQuantity);
   const outOfStock = parts.filter(p => p.quantity === 0);
@@ -43,9 +57,9 @@ export function PartsPage() {
     return true;
   });
 
-  function openCreate() {
+  function openCreate(prefillPartNumber?: string) {
     setEditingPart(null);
-    setForm(EMPTY_FORM);
+    setForm(prefillPartNumber ? { ...EMPTY_FORM, partNumber: prefillPartNumber } : EMPTY_FORM);
     setShowModal(true);
   }
 
@@ -77,6 +91,186 @@ export function PartsPage() {
     return 'text-gray-900 font-medium';
   }
 
+  // ── Scan helpers ────────────────────────────────────────────────
+  function openScanModal() {
+    setScanStep({ stage: 'scanning' });
+    setScanTab('camera');
+    setManualInput('');
+    setScanConfirmed(false);
+    setShowScanModal(true);
+  }
+
+  function closeScanModal() {
+    setShowScanModal(false);
+  }
+
+  const handleScanResult = useCallback((raw: string) => {
+    const matched = parts.find(
+      p => p.partNumber.trim().toLowerCase() === raw.trim().toLowerCase()
+    );
+    if (matched) {
+      setScanStep({ stage: 'found', part: matched, addQty: 1 });
+    } else {
+      setScanStep({ stage: 'notfound', partNumber: raw.trim() });
+    }
+  }, [parts]);
+
+  function handleManualLookup() {
+    const raw = manualInput.trim();
+    if (!raw) return;
+    handleScanResult(raw);
+  }
+
+  function confirmAdd(partId: string, qty: number) {
+    adjustPartQty(partId, qty);
+    setScanConfirmed(true);
+  }
+
+  function scanAgain() {
+    setScanStep({ stage: 'scanning' });
+    setScanTab('camera');
+    setManualInput('');
+    setScanConfirmed(false);
+  }
+
+  function handleCreateFromScan(partNumber: string) {
+    closeScanModal();
+    openCreate(partNumber);
+  }
+
+  // ── Scan modal content ──────────────────────────────────────────
+  function renderScanContent() {
+    if (scanConfirmed && scanStep.stage === 'found') {
+      const { part, addQty } = scanStep;
+      return (
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">Quantity Updated!</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Added <span className="font-bold text-[#367C2B]">+{addQty}</span> to <span className="font-medium">{part.description}</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              New quantity: <span className="font-semibold text-gray-700">{part.quantity + addQty} {part.unit}</span>
+            </p>
+          </div>
+          <div className="flex gap-3 mt-2">
+            <button className="btn-secondary" onClick={scanAgain}>Scan Another</button>
+            <button className="btn-primary" onClick={closeScanModal}>Done</button>
+          </div>
+        </div>
+      );
+    }
+
+    if (scanStep.stage === 'found') {
+      const { part, addQty } = scanStep;
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">Part Found</p>
+            <p className="font-semibold text-gray-900">{part.description}</p>
+            <p className="text-xs font-mono text-gray-500 mt-0.5">{part.partNumber}</p>
+            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+              <span>Current qty: <strong>{part.quantity} {part.unit}</strong></span>
+              {part.location && <span>Location: <strong>{part.location}</strong></span>}
+            </div>
+          </div>
+          <div>
+            <label className="label">Quantity to Add</label>
+            <div className="flex items-center gap-3 mt-1">
+              <button
+                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-semibold"
+                onClick={() => setScanStep(s => s.stage === 'found' ? { ...s, addQty: Math.max(1, s.addQty - 1) } : s)}
+              >−</button>
+              <input
+                type="number"
+                min="1"
+                className="input w-20 text-center text-lg font-semibold"
+                value={addQty}
+                onChange={e => setScanStep(s => s.stage === 'found' ? { ...s, addQty: Math.max(1, parseInt(e.target.value) || 1) } : s)}
+              />
+              <button
+                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-semibold"
+                onClick={() => setScanStep(s => s.stage === 'found' ? { ...s, addQty: s.addQty + 1 } : s)}
+              >+</button>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2 border-t border-gray-100">
+            <button className="btn-secondary flex-1" onClick={scanAgain}>Scan Again</button>
+            <button className="btn-primary flex-1" onClick={() => confirmAdd(part.id, addQty)}>
+              Add +{addQty}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (scanStep.stage === 'notfound') {
+      const { partNumber } = scanStep;
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+            <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-1">Part Not Found</p>
+            <p className="font-mono text-sm text-gray-800">{partNumber}</p>
+            <p className="text-xs text-gray-500 mt-1">This part number isn't in your inventory yet.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button className="btn-primary" onClick={() => handleCreateFromScan(partNumber)}>
+              <Plus size={15} /> Add to Inventory
+            </button>
+            <button className="btn-secondary" onClick={scanAgain}>Scan Again</button>
+          </div>
+        </div>
+      );
+    }
+
+    // stage === 'scanning' — show tabs
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Tabs */}
+        <div className="flex rounded-lg bg-gray-100 p-1 gap-1">
+          <button
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-medium transition-colors ${scanTab === 'camera' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setScanTab('camera')}
+          >
+            <ScanLine size={14} /> Camera Scan
+          </button>
+          <button
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-medium transition-colors ${scanTab === 'manual' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setScanTab('manual')}
+          >
+            <Keyboard size={14} /> Manual Entry
+          </button>
+        </div>
+
+        {scanTab === 'camera' ? (
+          <BarcodeScanner onScan={handleScanResult} />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="label">Enter Part Number</label>
+              <input
+                className="input font-mono"
+                placeholder="e.g. RE509672"
+                value={manualInput}
+                onChange={e => setManualInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
+                autoFocus
+              />
+            </div>
+            <button className="btn-primary" onClick={handleManualLookup} disabled={!manualInput.trim()}>
+              Look Up Part
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-5">
       {/* Header */}
@@ -85,9 +279,14 @@ export function PartsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Parts Inventory</h1>
           <p className="text-sm text-gray-500 mt-0.5">{parts.length} parts tracked</p>
         </div>
-        <button onClick={openCreate} className="btn-primary">
-          <Plus size={16} /> Add Part
-        </button>
+        <div className="flex gap-2">
+          <button onClick={openScanModal} className="btn-secondary flex items-center gap-1.5">
+            <ScanLine size={16} /> Scan Part
+          </button>
+          <button onClick={() => openCreate()} className="btn-primary">
+            <Plus size={16} /> Add Part
+          </button>
+        </div>
       </div>
 
       {/* Alert banners */}
@@ -244,6 +443,13 @@ export function PartsPage() {
               {editingPart ? 'Save Changes' : 'Add Part'}
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* Scan modal */}
+      {showScanModal && (
+        <Modal title="Scan Part" onClose={closeScanModal} size="sm">
+          {renderScanContent()}
         </Modal>
       )}
     </div>

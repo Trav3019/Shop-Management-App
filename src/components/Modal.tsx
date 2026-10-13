@@ -5,7 +5,7 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
-  size?: 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export function Modal({ title, onClose, children, size = 'lg' }: ModalProps) {
@@ -15,7 +15,7 @@ export function Modal({ title, onClose, children, size = 'lg' }: ModalProps) {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const widthClass = size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
+  const widthClass = size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : size === 'md' ? 'max-w-md' : 'max-w-sm';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
